@@ -26,7 +26,7 @@ app.get('/health', (_req, res) => {
 });
 
 // ─── Routes ─────────────────────────────────────────────────────────────────
-app.post('/webhook/whatsapp', zapiWebhook);
+app.use('/webhook/whatsapp', zapiWebhook);
 app.use('/webhook/stripe', stripeWebhook);
 
 // ─── Root ───────────────────────────────────────────────────────────────────
@@ -54,7 +54,6 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
 async function main() {
   console.log('🚀 Starting Scout X...');
 
-  // Initialize database
   try {
     await initDB();
   } catch (err) {
@@ -62,20 +61,17 @@ async function main() {
     process.exit(1);
   }
 
-  // Start server
   app.listen(PORT, '0.0.0.0', async () => {
     console.log(`✅ Scout X running on port ${PORT}`);
     console.log(`📡 WhatsApp webhook: POST /webhook/whatsapp`);
     console.log(`💳 Stripe webhook:   POST /webhook/stripe`);
     console.log(`❤️  Health check:    GET  /health`);
 
-    // Check Z-API connection
     const zapiStatus = await getInstanceStatus();
     if (zapiStatus) {
       console.log(`📱 Z-API status: ${zapiStatus.connected ? '✅ Connected' : '⚠️ Disconnected'}`);
     }
 
-    // Start daily scanner cron
     startDailyScanner();
   });
 }
