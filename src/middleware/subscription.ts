@@ -1,13 +1,14 @@
 import { queryOne } from '../db';
 import { sendWhatsAppMessage } from '../services/zapi';
 
-const STRIPE_PAYMENT_URL = 'https://buy.stripe.com/5kQfZi2yRfAoeTT0Kq7ss05';
+const PAYMENT_URL = 'https://buy.stripe.com/5kQfZi2yRfAoeTT0Kq7ss05';
 
 interface User {
   id: string;
   phone: string;
   name: string | null;
   stripe_customer_id: string | null;
+  trial_expires_at: Date | null;
 }
 
 interface Subscription {
@@ -17,19 +18,16 @@ interface Subscription {
   current_period_end: Date | null;
 }
 
-export async function getOrCreateUser(phone: string, name?: string): Promise<User> {
-  let user = await queryOne<User>(
-    `SELECT * FROM users WHERE phone = $1`,
-    [phone]
-  );
+export type AccessStatus = 'active' | 'trial_active' | 'trial_expired' | 'no_access';
 
+export async function getOrCreateUser(phone: string, name?: string): Promise<User> {
+  let user = await queryOne<User>(`SELECT * FROM users WHERE phone = $1`, [phone]);
   if (!user) {
     user = await queryOne<User>(
       `INSERT INTO users (phone, name) VALUES ($1, $2) RETURNING *`,
       [phone, name || null]
     );
   }
-
   return user!;
 }
 
@@ -39,44 +37,59 @@ export async function getUserSubscription(userId: string): Promise<Subscription 
      WHERE user_id = $1
        AND status = 'active'
        AND (current_period_end IS NULL OR current_period_end > NOW())
-     ORDER BY created_at DESC
-     LIMIT 1`,
+     ORDER BY created_at DESC LIMIT 1`,
     [userId]
   );
 }
 
+export async function getAccessStatus(user: User): Promise<AccessStatus> {
+  const sub = await getUserSubscription(user.id);
+  if (sub) return 'active';
+  if (user.trial_expires_at) {
+    return new Date(user.trial_expires_at) > new Date() ? 'trial_active' : 'trial_expired';
+  }
+  return 'no_access';
+}
+
 export async function hasActiveSubscription(userId: string): Promise<boolean> {
   const sub = await getUserSubscription(userId);
-  return sub !== null;
+  if (sub) return true;
+  const user = await queryOne<{ trial_expires_at: Date | null }>(
+    `SELECT trial_expires_at FROM users WHERE id = $1`, [userId]
+  );
+  return !!(user?.trial_expires_at && new Date(user.trial_expires_at) > new Date());
 }
 
-export async function sendSubscriptionGate(phone: string): Promise<void> {
-  const url = STRIPE_PAYMENT_URL;
-  const message = `👋 Olá! Sou o *Scout X*, seu assistente de apostas esportivas com IA.
-
-Para acessar as análises, você precisa de uma assinatura ativa.
-
-💎 *Plano Scout X* — R$47/mês
-✅ Análises ilimitadas via WhatsApp
-✅ Cobertura de 7+ esportes
-✅ Value bets diários
-✅ Suporte 24/7 via IA
-
-📲 *Assine agora:*
-` + url + `
-
-Após o pagamento, envie qualquer mensagem para começar! 🚀`;
-
-  await sendWhatsAppMessage(phone, message);
+async function sendTrialExpiredMessage(phone: string, name: string | null): Promise<void> {
+  const firstName = name?.split(' ')[0] || '';
+  const greeting = firstName ? `*${firstName}*, sua` : 'Sua';
+  await sendWhatsAppMessage(phone,
+    `⏰ ${greeting} semana de teste gratuito do *Scout X* terminou!\n\nEspero que tenha gostado das análises! 🏆\n\nPara continuar tendo acesso ilimitado:\n\n💎 *Plano Scout X* — R$47/mês\n✅ Análises ilimitadas via WhatsApp\n✅ Cobertura de 7+ esportes\n✅ Value bets diários\n✅ Suporte 24/7 via IA\n\n📲 *Assine agora:*\n${PAYMENT_URL}\n\nQualquer dúvida, é só responder aqui! 🚀`
+  );
 }
 
-export async function checkSubscriptionAndNotify(phone: string, userName?: string): Promise<{ user: User; hasAccess: boolean }> {
+async function sendNoAccessMessage(phone: string): Promise<void> {
+  await sendWhatsAppMessage(phone,
+    `👋 Olá! Sou o *Scout X*, seu assistente de apostas esportivas com IA.\n\n💎 *Plano Scout X* — R$47/mês\n✅ Análises ilimitadas via WhatsApp\n✅ Cobertura de 7+ esportes\n✅ Value bets diários\n✅ Suporte 24/7 via IA\n\n📲 *Assine agora:*\n${PAYMENT_URL}\n\nApós o pagamento, envie qualquer mensagem para começar! 🚀`
+  );
+}
+
+export async function checkSubscriptionAndNotify(
+  phone: string,
+  userName?: string
+): Promise<{ user: User; hasAccess: boolean }> {
   const user = await getOrCreateUser(phone, userName);
-  const hasAccess = await hasActiveSubscription(user.id);
+  const status = await getAccessStatus(user);
 
-  if (!hasAccess) {
-    await sendSubscriptionGate(phone);
+  if (status === 'active' || status === 'trial_active') {
+    return { user, hasAccess: true };
   }
 
-  return { user, hasAccess };
+  if (status === 'trial_expired') {
+    await sendTrialExpiredMessage(phone, user.name);
+  } else {
+    await sendNoAccessMessage(phone);
+  }
+
+  return { user, hasAccess: false };
 }
