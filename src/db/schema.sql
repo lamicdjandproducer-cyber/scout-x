@@ -114,3 +114,8 @@ CREATE TRIGGER update_bets_updated_at BEFORE UPDATE ON bets
 DROP TRIGGER IF EXISTS update_alerts_updated_at ON alerts;
 CREATE TRIGGER update_alerts_updated_at BEFORE UPDATE ON alerts
   FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+
+-- Trial columns (safe to run on existing DB)
+ALTER TABLE users ADD COLUMN IF NOT EXISTS trial_expires_at TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS trial_upsell_sent_at TIMESTAMPTZ;
+CREATE INDEX IF NOT EXISTS idx_users_trial_expires ON users(trial_expires_at);
