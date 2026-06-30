@@ -2,6 +2,7 @@
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
+-- Users table
 CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   phone VARCHAR(20) UNIQUE NOT NULL,
@@ -12,6 +13,7 @@ CREATE TABLE IF NOT EXISTS users (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Subscriptions table
 CREATE TABLE IF NOT EXISTS subscriptions (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID REFERENCES users(id) ON DELETE CASCADE,
@@ -26,6 +28,7 @@ CREATE TABLE IF NOT EXISTS subscriptions (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Conversations table
 CREATE TABLE IF NOT EXISTS conversations (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID REFERENCES users(id) ON DELETE CASCADE,
@@ -35,6 +38,7 @@ CREATE TABLE IF NOT EXISTS conversations (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Bets table
 CREATE TABLE IF NOT EXISTS bets (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID REFERENCES users(id) ON DELETE CASCADE,
@@ -49,6 +53,7 @@ CREATE TABLE IF NOT EXISTS bets (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- WhatsApp logs table
 CREATE TABLE IF NOT EXISTS whatsapp_logs (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   phone VARCHAR(20) NOT NULL,
@@ -59,6 +64,7 @@ CREATE TABLE IF NOT EXISTS whatsapp_logs (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Alerts table
 CREATE TABLE IF NOT EXISTS alerts (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID REFERENCES users(id) ON DELETE CASCADE,
@@ -71,6 +77,7 @@ CREATE TABLE IF NOT EXISTS alerts (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Indexes
 CREATE INDEX IF NOT EXISTS idx_users_phone ON users(phone);
 CREATE INDEX IF NOT EXISTS idx_users_stripe_customer ON users(stripe_customer_id);
 CREATE INDEX IF NOT EXISTS idx_subscriptions_user ON subscriptions(user_id);
@@ -83,6 +90,7 @@ CREATE INDEX IF NOT EXISTS idx_bets_user ON bets(user_id);
 CREATE INDEX IF NOT EXISTS idx_alerts_user ON alerts(user_id);
 CREATE INDEX IF NOT EXISTS idx_whatsapp_logs_phone ON whatsapp_logs(phone);
 
+-- Updated_at trigger function
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -91,11 +99,18 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+DROP TRIGGER IF EXISTS update_users_updated_at ON users;
 CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
   FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_subscriptions_updated_at ON subscriptions;
 CREATE TRIGGER update_subscriptions_updated_at BEFORE UPDATE ON subscriptions
   FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_bets_updated_at ON bets;
 CREATE TRIGGER update_bets_updated_at BEFORE UPDATE ON bets
   FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_alerts_updated_at ON alerts;
 CREATE TRIGGER update_alerts_updated_at BEFORE UPDATE ON alerts
   FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
