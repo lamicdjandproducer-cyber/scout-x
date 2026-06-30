@@ -38,20 +38,30 @@ router.post('/', async (req: Request, res: Response) => {
         const session = event.data.object as Stripe.Checkout.Session;
         const customerId = session.customer as string;
         const subscriptionId = session.subscription as string;
-        const phone = session.metadata?.phone;
-        const name = session.metadata?.name;
-        if (!phone) { console.warn('No phone in metadata'); break; }
 
-        let user = await queryOne<User>(`SELECT * FROM users WHERE phone = $1`, [phone]);
+        // Phone comes from customer_details (Payment Link with phone required)
+        // or from metadata (custom checkout sessions)
+        const phone = session.customer_details?.phone || session.metadata?.phone;
+        const name = session.customer_details?.name || session.metadata?.name;
+
+        if (!phone) {
+          console.warn('No phone found in session — cannot activate subscription');
+          break;
+        }
+
+        // Normalize phone: remove non-digits
+        const normalizedPhone = phone.replace(/\D/g, '');
+
+        let user = await queryOne<User>(`SELECT * FROM users WHERE phone = $1`, [normalizedPhone]);
         if (!user) {
-          user = await queryOne<User>(`INSERT INTO users (phone, name, stripe_customer_id) VALUES ($1, $2, $3) RETURNING *`, [phone, name || null, customerId]);
+          user = await queryOne<User>(`INSERT INTO users (phone, name, stripe_customer_id) VALUES ($1, $2, $3) RETURNING *`, [normalizedPhone, name || null, customerId]);
         } else {
           await query(`UPDATE users SET stripe_customer_id = $1, updated_at = NOW() WHERE id = $2`, [customerId, user!.id]);
         }
 
         const sub = await stripe.subscriptions.retrieve(subscriptionId);
         await upsertSubscription(user!.id, subscriptionId, customerId, 'active', sub.items.data[0]?.price?.id ?? null, new Date(sub.current_period_start * 1000), new Date(sub.current_period_end * 1000), sub.cancel_at_period_end);
-        await sendWhatsAppMessage(phone, `Pagamento confirmado! Bem-vindo ao Scout X!\n\nSua assinatura esta ativa. Analises ilimitadas, 7+ esportes, value bets diarios.\n\nMe faca qualquer pergunta sobre esportes ou apostas!`);
+        await sendWhatsAppMessage(normalizedPhone, `Pagamento confirmado! Bem-vindo ao Scout X!\n\nSua assinatura esta ativa. Analises ilimitadas, 7+ esportes, value bets diarios.\n\nMe faca qualquer pergunta sobre esportes ou apostas!`);
         break;
       }
       case 'customer.subscription.deleted': {
