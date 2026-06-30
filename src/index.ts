@@ -1,4 +1,3 @@
-import 'dotenv/config';
 import express from 'express';
 import { initDB } from './db';
 import zapiWebhook from './webhooks/zapi';
@@ -53,8 +52,9 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
 
 // ─── Start ──────────────────────────────────────────────────────────────────
 async function main() {
-  console.log('\u{1F680} Starting Scout X...');
+  console.log('🚀 Starting Scout X...');
 
+  // Initialize database
   try {
     await initDB();
   } catch (err) {
@@ -62,8 +62,20 @@ async function main() {
     process.exit(1);
   }
 
+  // Start server
   app.listen(PORT, '0.0.0.0', async () => {
-    console.log(`Scout X running on port ${PORT}`);
+    console.log(`✅ Scout X running on port ${PORT}`);
+    console.log(`📡 WhatsApp webhook: POST /webhook/whatsapp`);
+    console.log(`💳 Stripe webhook:   POST /webhook/stripe`);
+    console.log(`❤️  Health check:    GET  /health`);
+
+    // Check Z-API connection
+    const zapiStatus = await getInstanceStatus();
+    if (zapiStatus) {
+      console.log(`📱 Z-API status: ${zapiStatus.connected ? '✅ Connected' : '⚠️ Disconnected'}`);
+    }
+
+    // Start daily scanner cron
     startDailyScanner();
   });
 }
