@@ -36,7 +36,7 @@ app.get('/health', (_req, res) => {
 });
 
 // Routes
-app.post('/webhook/whatsapp', zapiWebhook);
+app.use('/webhook/whatsapp', zapiWebhook);
 app.use('/webhook/stripe', stripeWebhook);
 app.use('/api/trial', trialRouter);
 
