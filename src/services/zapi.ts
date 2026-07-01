@@ -51,3 +51,21 @@ export async function getInstanceStatus(): Promise<any> {
     return null;
   }
 }
+
+export async function registerWebhook(webhookUrl: string): Promise<boolean> {
+  try {
+    const response = await axios.put(
+      `${ZAPI_BASE_URL}/update-webhook-received`,
+      { value: webhookUrl },
+      {
+        headers: { 'Content-Type': 'application/json', 'Client-Token': CLIENT_TOKEN! },
+        timeout: 10000,
+      }
+    );
+    console.log(`✅ Z-API webhook registered: ${webhookUrl}`);
+    return response.data?.value === true;
+  } catch (err: any) {
+    console.error('❌ Failed to register Z-API webhook:', err?.response?.data || err.message);
+    return false;
+  }
+}
