@@ -288,12 +288,20 @@ router.post('/', async (req: Request, res: Response) => {
     }
 
     // Handle text
-    const response = await runAgent(phone, userMessage, user.id);
-    const result = await sendWhatsAppMessage(phone, response);
-    await logOutboundMessage(phone, response, result?.messageId);
+    try {
+      const response = await runAgent(phone, userMessage, user.id);
+      const result = await sendWhatsAppMessage(phone, response);
+      await logOutboundMessage(phone, response, result?.messageId);
+    } catch (agentErr: any) {
+      console.error('❌ Text agent error:', agentErr);
+      const isQuota = agentErr?.status === 429 || agentErr?.code === 'insufficient_quota';
+      await sendWhatsAppMessage(phone, isQuota
+        ? '⚠️ IA indisponível. Tente novamente em minutos.'
+        : '❌ Erro ao processar. Tente novamente.');
+    }
 
   } catch (err) {
-    console.error('❌ Error processing WhatsApp webhook:', err);
+    console.error('❌ Webhook error:', err);
   }
 });
 
