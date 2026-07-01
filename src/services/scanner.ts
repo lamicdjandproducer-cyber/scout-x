@@ -51,7 +51,7 @@ async function buildDailyScannerMessage(): Promise<string> {
       lines.push('💰 *Value Bets Detectadas*');
       valueBets.slice(0, 3).forEach(vb => {
         lines.push(`• *${vb.event}*`);
-        lines.push(`  ${vb.outcome} @ ${vb.bestOdds.toFixed(2)} (edge: ${(vb.edge * 100).toFixed(1)}%)`);
+        lines.push(`  ${vb.outcome} @ ${vb.odds.toFixed(2)} (edge: ${(vb.edge * 100).toFixed(1)}%)`);
       });
       lines.push('');
     }
