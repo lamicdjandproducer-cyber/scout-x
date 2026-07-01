@@ -35,7 +35,7 @@ const TOOLS: OpenAI.Chat.ChatCompletionTool[] = [
     type: 'function',
     function: {
       name: 'get_today_football_fixtures',
-      description: 'Get football/soccer matches happening today. Use to find today\'s games or schedules.',
+      description: 'Get football/soccer matches happening TODAY ONLY (current date). Do NOT use for future dates — for upcoming games, proximo jogo, or any specific future date, use get_scheduled_events_by_sport with the date parameter instead.',
       parameters: {
         type: 'object',
         properties: {
@@ -257,7 +257,7 @@ const TOOLS: OpenAI.Chat.ChatCompletionTool[] = [
     type: 'function',
     function: {
       name: 'get_scheduled_events_by_sport',
-      description: 'Get all scheduled events for a sport on a given date. Broader coverage than API-Sports. Good for finding all matches across all competitions.',
+      description: 'PRIMARY tool for any specific date or future fixtures. USE THIS when user asks: proximo jogo, amanha, domingo, dia X, next game. Calculate date from today (YYYY-MM-DD) and pass as date parameter. Also fallback when get_today_football_fixtures returns no results.',
       parameters: {
         type: 'object',
         properties: {
@@ -463,14 +463,14 @@ export async function runAgent(
   const history = await getConversationHistory(phone);
 
   const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
-    { role: 'system', content: SYSTEM_PROMPT },
+    { role: 'system', content: SYSTEM_PROMPT + '[CONTEXTO: Hoje é ' + new Date().toISOString().split('T')[0] + '. Converta datas relativas (amanhã, domingo, dia X, próximo jogo) para YYYY-MM-DD nos parâmetros de ferramentas.]' },
     ...history.map(h => ({ role: h.role as 'user' | 'assistant', content: h.content })),
   ];
 
   let toolCallCount = 0;
 
   let response = await openai.chat.completions.create({
-    model: 'gpt-4o',
+    model: 'gpt-4o-mini',
     messages,
     tools: TOOLS,
     tool_choice: 'auto',
@@ -499,7 +499,7 @@ export async function runAgent(
     }
 
     response = await openai.chat.completions.create({
-      model: 'gpt-4o',
+      model: 'gpt-4o-mini',
       messages,
       tools: TOOLS,
       tool_choice: 'auto',
@@ -554,7 +554,7 @@ export async function runAgentWithImage(
     'Analise essa imagem. Se for uma boleta de apostas, analise as odds, calcule o retorno potencial, identifique value bets e aponte riscos. Se for algo relacionado a esportes, forneça análise relevante.';
 
   const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
-    { role: 'system', content: SYSTEM_PROMPT },
+    { role: 'system', content: SYSTEM_PROMPT + '[CONTEXTO: Hoje é ' + new Date().toISOString().split('T')[0] + '. Converta datas relativas (amanhã, domingo, dia X, próximo jogo) para YYYY-MM-DD nos parâmetros de ferramentas.]' },
     ...history.map(h => ({ role: h.role as 'user' | 'assistant', content: h.content })),
     {
       role: 'user',
