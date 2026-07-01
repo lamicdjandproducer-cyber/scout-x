@@ -4,7 +4,7 @@ import zapiWebhook from './webhooks/zapi';
 import stripeWebhook from './webhooks/stripe';
 import trialRouter from './routes/trial';
 import { startDailyScanner } from './services/scanner';
-import { getInstanceStatus } from './services/zapi';
+import { getInstanceStatus, registerWebhook } from './services/zapi';
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3000', 10);
@@ -72,6 +72,8 @@ async function main() {
     console.log(`❤️  Health check:    GET  /health`);
     const zapiStatus = await getInstanceStatus();
     if (zapiStatus) console.log(`📱 Z-API status: ${zapiStatus.connected ? '✅ Connected' : '⚠️ Disconnected'}`);
+    const appUrl = process.env.APP_URL || 'https://scout-x-production-4bfa.up.railway.app';
+    await registerWebhook(`${appUrl}/webhook/whatsapp`);
     startDailyScanner();
   });
 }
