@@ -21,3 +21,5 @@ AI-powered sports betting analyst on WhatsApp.
 - Transfer news
 - Audio transcription (Whisper)
 - Betting slip analysis (GPT-4o Vision)
+
+<!-- v1.2.0: SportAPI + Probability Engine -->
