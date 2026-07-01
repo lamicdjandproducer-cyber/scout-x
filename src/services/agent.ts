@@ -315,7 +315,7 @@ const TOOLS: OpenAI.Chat.ChatCompletionTool[] = [
         required: ['type'],
       },
     },
-  },,
+  },
   // ─── Full Match Analysis (Probability Engine) ────────────────────────────
   {
     type: 'function',
