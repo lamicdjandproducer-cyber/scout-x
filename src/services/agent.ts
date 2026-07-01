@@ -16,6 +16,7 @@ import {
   getPlayerSeasonStats, getTransferNews, getPlayerRankings,
   SPORT_CATEGORY,
 } from './sportapi';
+import { fullMatchAnalysis } from './analysis';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -314,9 +315,29 @@ const TOOLS: OpenAI.Chat.ChatCompletionTool[] = [
         required: ['type'],
       },
     },
+  },,
+  // ─── Full Match Analysis (Probability Engine) ────────────────────────────
+  {
+    type: 'function',
+    function: {
+      name: 'full_match_analysis',
+      description: 'Run the complete Scout X probability engine on a match: Poisson model, no-vig fair probability, injury/form/H2H/motivation adjustments, value bet detection with edge %, Kelly staking, and confidence score. USE THIS for any match analysis request — it is the most complete tool available.',
+      parameters: {
+        type: 'object',
+        properties: {
+          home_team_id: { type: 'number', description: 'Home team ID (from search_football_team)' },
+          away_team_id: { type: 'number', description: 'Away team ID (from search_football_team)' },
+          home_team_name: { type: 'string', description: 'Home team name' },
+          away_team_name: { type: 'string', description: 'Away team name' },
+          fixture_id: { type: 'number', description: 'Fixture ID for injury lookup (optional)' },
+          league_id: { type: 'number', description: 'League ID for home advantage calibration (optional)' },
+          sport_key: { type: 'string', description: 'The Odds API sport key for real-time odds (optional, e.g. soccer_brazil_campeonato)' },
+        },
+        required: ['home_team_id', 'away_team_id', 'home_team_name', 'away_team_name'],
+      },
+    },
   },
 ];
-
 // ─── Tool executor ────────────────────────────────────────────────────────────
 
 const SPORT_CAT_MAP: Record<string, number> = {
@@ -390,6 +411,16 @@ async function executeTool(name: string, args: any): Promise<any> {
     }
     case 'get_player_rankings':
       return getPlayerRankings(args.type || 'atp');
+    case 'full_match_analysis':
+      return fullMatchAnalysis({
+        homeTeamId: args.home_team_id,
+        awayTeamId: args.away_team_id,
+        homeTeamName: args.home_team_name,
+        awayTeamName: args.away_team_name,
+        fixtureId: args.fixture_id,
+        leagueId: args.league_id,
+        sportKey: args.sport_key,
+      });
     default:
       return { error: `Unknown tool: ${name}` };
   }
